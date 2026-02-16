@@ -7,6 +7,7 @@ from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
 
 st.title("🚀 HAL-9001: Logística Intergaláctica")
 
@@ -39,7 +40,8 @@ def planet_gravity_alert(planet_name: str) -> str:
     result = planets.get(planet_name.lower(), "Datos no disponibles en el cuadrante actual.")
     return f"Informe de gravedad para {planet_name}: {result}"
 
-search_tool = DuckDuckGoSearchRun()
+wrapper = DuckDuckGoSearchAPIWrapper()
+search_tool = DuckDuckGoSearchRun(api_wrapper=wrapper)
 tools = [calculate_antimatter_fuel, planet_gravity_alert, search_tool]
 
 # 4. Prompt y Agente
