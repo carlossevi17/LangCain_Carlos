@@ -18,7 +18,7 @@ api_key = st.sidebar.text_input("Introduce tu Google API Key", type="password")
 
 if api_key:
     # 1. Configurar el Modelo
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
+    llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview", google_api_key=api_key)
 
     search = DuckDuckGoSearchResults()
     wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
