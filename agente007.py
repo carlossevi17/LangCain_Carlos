@@ -31,7 +31,7 @@ if key_input:
         # INICIALIZACIÓN DEL MODELO
         # Forzamos transport="rest" para evitar el error 'line 1 column 1'
         llm = ChatGoogleGenerativeAI(
-            model="gemini-3-flash-preview", 
+            model="gemini-flash-latest", 
             google_api_key=api_key,
             temperature=0,
             transport="rest"
