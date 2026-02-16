@@ -4,4 +4,4 @@ langchain-google-genai
 langchain-community
 langchain-classic
 wikipedia
-duckduckgo-search
+ddgs>=6.0.0
