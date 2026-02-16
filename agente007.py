@@ -1,8 +1,6 @@
 import streamlit as st
 import os
 from datetime import datetime
-
-# Importaciones específicas del notebook
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_community.tools.wikipedia.tool import WikipediaQueryRun
@@ -12,50 +10,51 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.chat_message_histories import StreamlitChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
-# --- 1. CONFIGURACIÓN DE FECHA REAL ---
-# Esto es clave para que no te diga que hoy es junio de 2024
+# 1. Fecha real para que no alucine
 hoy = datetime.now().strftime("%d de %B de %Y")
 
-st.set_page_config(page_title="Agente Histórico", page_icon="📜")
-st.title("📜 Agente Experto en Fechas")
-st.write(f"📅 **Fecha de hoy en el sistema:** {hoy}")
+st.set_page_config(page_title="Agente Fijo", page_icon="🛠️")
+st.title("🛠️ Agente 007: Corrección Total")
 
-# --- 2. ENTRADA DE API KEY ---
+# 2. Entrada de clave en la barra lateral
 with st.sidebar:
-    api_key = st.text_input("Introduce tu Google API Key", type="password")
+    st.header("Seguridad")
+    key_input = st.text_input("Introduce tu API Key", type="password")
 
-if api_key:
-    # Limpiamos la clave y la configuramos
-    os.environ["GOOGLE_API_KEY"] = api_key.strip()
+if key_input:
+    # Limpieza de clave
+    api_key = key_input.strip()
+    os.environ["GOOGLE_API_KEY"] = api_key
     
     try:
-        # --- 3. CONFIGURACIÓN DEL MODELO Y HERRAMIENTAS ---
-        # Gemini 1.5 Flash es el modelo que mejor funciona para esto
-        llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview", temperature=0)
+        # 3. EL TRUCO: transport="rest" evita que la conexión se quede vacía
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-3-flash-preview", 
+            google_api_key=api_key,
+            temperature=0,
+            transport="rest"  # <--- ESTO ES LO QUE FALTA
+        )
 
-        search = DuckDuckGoSearchResults()
-        wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
-        tools = [search, wikipedia]
+        # 4. Herramientas sencillas
+        tools = [
+            DuckDuckGoSearchResults(),
+            WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+        ]
 
-        # --- 4. EL PROMPT (Aquí está la magia de las fechas) ---
+        # 5. Prompt directo (basado en tu notebook)
         prompt = ChatPromptTemplate.from_messages([
-            ("system", f"""Eres un historiador experto. 
-            CONTEXTO: Hoy es día {hoy}.
-            REGLA: Si te preguntan por una fecha exacta, edad de alguien o eventos pasados, 
-            NO ADIVINES. Usa Wikipedia o Search para confirmar el año exacto."""),
+            ("system", f"Eres un asistente que sabe que hoy es {hoy}. Si no sabes una fecha o dato de un famoso, búscala en las herramientas."),
             ("placeholder", "{history}"),
             ("human", "{input}"),
             ("placeholder", "{agent_scratchpad}"),
         ])
 
-        # --- 5. EL AGENTE ---
+        # 6. Agente y Memoria (Estructura del notebook)
         agent = create_tool_calling_agent(llm, tools, prompt)
-        agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+        agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True)
 
-        # Memoria para Streamlit
-        msgs = StreamlitChatMessageHistory(key="chat_history")
+        msgs = StreamlitChatMessageHistory(key="chat_history_unique")
 
-        # Unimos todo con el historial
         agent_with_history = RunnableWithMessageHistory(
             agent_executor,
             lambda session_id: msgs,
@@ -63,20 +62,21 @@ if api_key:
             history_messages_key="history",
         )
 
-        # --- 6. INTERFAZ DE USUARIO ---
+        # --- INTERFAZ ---
         for msg in msgs.messages:
             st.chat_message(msg.type).write(msg.content)
 
-        if user_query := st.chat_input("Ej: ¿Qué pasó tal día como hoy? o ¿En qué año nació CR7?"):
-            st.chat_message("human").write(user_query)
-            
+        if user_input := st.chat_input("Pregúntame algo"):
+            st.chat_message("human").write(user_input)
             with st.chat_message("ai"):
-                with st.spinner("Consultando archivos..."):
-                    config = {"configurable": {"session_id": "sesion_unica"}}
-                    response = agent_with_history.invoke({"input": user_query}, config)
-                    st.write(response["output"])
+                # Invocación directa
+                response = agent_with_history.invoke(
+                    {"input": user_input}, 
+                    config={"configurable": {"session_id": "temp"}}
+                )
+                st.write(response["output"])
 
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Error técnico: {e}")
 else:
-    st.info("Por favor, introduce tu API Key en la barra lateral.")
+    st.info("Pon la API Key a la izquierda para activar el agente.")
