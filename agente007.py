@@ -7,6 +7,7 @@ from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.chat_message_histories import StreamlitChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_community.tools import DuckDuckGoSearchResults
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Agente con Memoria", page_icon="🤖")
@@ -19,8 +20,7 @@ if api_key:
     # 1. Configurar el Modelo
     llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
 
-    # 2. Configurar Herramientas
-    search = DuckDuckGoSearchRun()
+    search = DuckDuckGoSearchResults()
     wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
     tools = [search, wikipedia]
 
