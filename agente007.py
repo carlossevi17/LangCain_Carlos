@@ -2,51 +2,52 @@ import streamlit as st
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.tools import tool
-from langchain_community.tools import DuckDuckGoSearchRun
+from langchain_community.tools.wikipedia.tool import WikipediaQueryRun
+from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
 
-st.title("🤖 Agente Sencillo LangChain")
+st.title("🤖 Mi Agente LangChain")
 
-# Pide la clave de API en la barra lateral
+# Configuración de API Key
 with st.sidebar:
-    apikey = st.text_input("Introduce tu Google API Key", type="password")
+    api_key = st.text_input("Introduce tu Google API Key", type="password")
 
-if not apikey:
-    st.info("Introduce la API Key para empezar.")
-    st.stop()
+if api_key:
+    os.environ["GOOGLE_API_KEY"] = api_key
+    
+    # 1. Herramientas (Copiadas de tu notebook)
+    # Tu herramienta personalizada
+    @tool
+    def conchita_coins(usd_input: float) -> float:
+        """Usa esta herramienta para convertir USD a Conchita Academy coins."""
+        return 1.3 * float(usd_input)
 
-os.environ["GOOGLE_API_KEY"] = apikey
+    # Wikipedia (que es más estable que DuckDuckGo en Streamlit)
+    wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+    
+    tools = [conchita_coins, wikipedia]
 
-# 1. Configuración del Modelo (Gemini 1.5 Flash es el estándar actual)
-chat = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
+    # 2. Modelo (Versión estable)
+    chat = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
 
-# 2. Definición de Herramientas (Como tu ejemplo de conchita_coins)
-@tool
-def convert_to_galactic_credits(usd_amount: float) -> float:
-    """Utiliza esta herramienta para convertir dólares USD a Créditos Galácticos."""
-    return usd_amount * 1.5
+    # 3. Prompt (Estructura de tu notebook)
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "Eres un asistente que usa Wikipedia para buscar info o convierte monedas."),
+        ("human", "{input}"),
+        ("placeholder", "{agent_scratchpad}"),
+    ])
 
-# Herramienta de búsqueda (como en tu notebook)
-search = DuckDuckGoSearchRun()
-tools = [convert_to_galactic_credits, search]
+    # 4. Agente
+    agent = create_tool_calling_agent(chat, tools, prompt)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-# 3. Prompt sencillo (siguiendo tu ejemplo de AgentExecutor)
-prompt = ChatPromptTemplate.from_messages([
-    ("system", "Eres un asistente útil que usa herramientas para responder."),
-    ("human", "{input}"),
-    ("placeholder", "{agent_scratchpad}"),
-])
+    # Interfaz de chat
+    user_input = st.text_input("¿En qué puedo ayudarte?")
 
-# 4. Creación del Agente
-agent = create_tool_calling_agent(chat, tools, prompt)
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-
-# 5. Interfaz de usuario
-user_query = st.text_input("Hazme una pregunta (ej: ¿Cuántos créditos galácticos son 50 dólares?)")
-
-if user_query:
-    with st.spinner("Pensando..."):
-        # Ejecución directa sin memoria compleja para no complicar
-        response = agent_executor.invoke({"input": user_query})
-        st.markdown(f"**Respuesta:** {response['output']}")
+    if user_input:
+        with st.spinner("Buscando..."):
+            response = agent_executor.invoke({"input": user_input})
+            st.write(response["output"])
+else:
+    st.warning("Por favor, introduce tu API Key en la barra lateral.")
