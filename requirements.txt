@@ -1,4 +1,4 @@
 langchain-google-genai
 langchain-community
-duckduckgo-search
+wikipedia
 streamlit
