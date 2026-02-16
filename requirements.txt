@@ -1,6 +1,4 @@
-langchain
-langchain-community
 langchain-google-genai
-duckduckgo-search==6.3.3
-pydantic
+langchain-community
+duckduckgo-search
 streamlit
