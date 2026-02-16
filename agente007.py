@@ -31,7 +31,7 @@ if api_key:
     try:
         # --- 3. CONFIGURACIÓN DEL MODELO Y HERRAMIENTAS ---
         # Gemini 1.5 Flash es el modelo que mejor funciona para esto
-        llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
+        llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview", temperature=0)
 
         search = DuckDuckGoSearchResults()
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
