@@ -1,7 +1,6 @@
 streamlit
-langchain
 langchain-google-genai
 langchain-community
 langchain-classic
 wikipedia
-ddgs>=6.0.0
+duckduckgo-search
