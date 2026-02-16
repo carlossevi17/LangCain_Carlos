@@ -32,7 +32,7 @@ tools = [conchita_coins, wikipedia]
 
 # 3. Configuración del Modelo
 # Nota: Usamos 'gemini-1.5-flash' porque el nombre '2.5' causa el ValidationError que recibiste.
-chat = ChatGoogleGenerativeAI(model='gemini-1.5-flash', temperature=0)
+chat = ChatGoogleGenerativeAI(model='gemini-2.5-flash', temperature=0)
 
 # 4. Prompt (Misma estructura que tu notebook)
 prompt = ChatPromptTemplate.from_messages([
