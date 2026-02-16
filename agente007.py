@@ -1,58 +1,68 @@
 import streamlit as st
-import os
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.tools import tool
+from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.tools.wikipedia.tool import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
-from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.prompts import ChatPromptTemplate
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_community.chat_message_histories import StreamlitChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
 
-# Título de la App (Basado en tu notebook)
-st.title("Conchita EDEM Agent 🤖")
+# --- CONFIGURACIÓN DE LA PÁGINA ---
+st.set_page_config(page_title="Agente con Memoria", page_icon="🤖")
+st.title("🤖 Mi Agente con Memoria")
 
-# 1. Configuración de API Key (Sustituye a getpass)
-with st.sidebar:
-    api_key = st.text_input("Provide your Google API Key:", type="password")
+# Input para la API Key (más seguro para despliegue)
+api_key = st.sidebar.text_input("Introduce tu Google API Key", type="password")
 
-if not api_key:
-    st.info("Por favor, introduce tu API Key para comenzar.")
-    st.stop()
+if api_key:
+    # 1. Configurar el Modelo
+    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
 
-os.environ['GOOGLE_API_KEY'] = api_key
+    # 2. Configurar Herramientas
+    search = DuckDuckGoSearchRun()
+    wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+    tools = [search, wikipedia]
 
-# 2. Definición de Herramientas (Copiadas exactamente de tu .ipynb)
-@tool
-def conchita_coins(input: float) -> float:
-    """Use this tool to convert USD to Conchita Academy coins"""
-    return 1.3 * (float(input))
+    # 3. Configurar la Memoria (Específica para Streamlit)
+    # Esto guarda los mensajes automáticamente en st.session_state
+    msgs = StreamlitChatMessageHistory(key="chat_history")
 
-# Configuración de Wikipedia
-wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
-tools = [conchita_coins, wikipedia]
+    # 4. Definir el Prompt
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "Eres un asistente útil que usa herramientas para dar respuestas precisas."),
+        MessagesPlaceholder(variable_name="history"),
+        ("human", "{input}"),
+        MessagesPlaceholder(variable_name="agent_scratchpad"),
+    ])
 
-# 3. Configuración del Modelo
-# Nota: Usamos 'gemini-1.5-flash' porque el nombre '2.5' causa el ValidationError que recibiste.
-chat = ChatGoogleGenerativeAI(model='gemini-2.5-flash', temperature=0)
+    # 5. Crear el Agente
+    agent = create_tool_calling_agent(llm, tools, prompt)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-# 4. Prompt (Misma estructura que tu notebook)
-prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a helpful assistant. For answering the user query, look for information using Wikipedia and then give the final answer"),
-    ("human", "{input}"),
-    ("placeholder", "{agent_scratchpad}"),
-])
+    # 6. Agente con historial
+    agent_with_history = RunnableWithMessageHistory(
+        agent_executor,
+        lambda session_id: msgs,
+        input_messages_key="input",
+        history_messages_key="history",
+    )
 
-# 5. Agente y Executor
-agent = create_tool_calling_agent(chat, tools, prompt)
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    # --- INTERFAZ DE CHAT ---
+    # Mostrar historial previo
+    for msg in msgs.messages:
+        st.chat_message(msg.type).write(msg.content)
 
-# 6. Interfaz de entrada
-user_input = st.text_input("Haz tu consulta:")
+    # Entrada del usuario
+    if user_input := st.chat_input("¿En qué puedo ayudarte?"):
+        st.chat_message("human").write(user_input)
+        
+        with st.chat_message("ai"):
+            with st.spinner("Pensando..."):
+                # Llamada al agente
+                config = {"configurable": {"session_id": "any"}}
+                response = agent_with_history.invoke({"input": user_input}, config)
+                st.write(response["output"])
 
-if user_input:
-    with st.spinner("El agente está pensando..."):
-        try:
-            # Invocación final idéntica a tu notebook
-            result = agent_executor.invoke({"input": user_input})
-            st.markdown(f"**Resultado:** {result['output']}")
-        except Exception as e:
-            st.error(f"Error: {e}")
+else:
+    st.info("Por favor, añade tu Google API Key en la barra lateral para comenzar.")
