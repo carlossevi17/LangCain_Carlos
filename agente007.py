@@ -11,59 +11,71 @@ from langchain_community.chat_message_histories import StreamlitChatMessageHisto
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.runnables import RunnableLambda
 
-# 1. Configuración de fecha real
+# --- CONFIGURACIÓN DE FECHA ---
 fecha_actual = datetime.now().strftime("%d de %B de %Y")
 
-st.set_page_config(page_title="Agente con Password", page_icon="🔑")
+st.set_page_config(page_title="Agente 007", page_icon="🕵️‍♂️")
 st.title("🕵️‍♂️ Agente Investigador")
 
 # --- BARRA LATERAL ---
 with st.sidebar:
-    st.header("Configuración")
-    # Usamos session_state para que la clave no se borre al recargar
-    user_api_key = st.text_input("Introduce tu Google API Key", type="password", key="api_key_input")
+    st.header("Seguridad")
+    # Añadimos una 'key' para que Streamlit mantenga el valor al recargar
+    user_api_key = st.text_input("Introduce tu Google API Key", type="password", key="password_input")
     
-    if st.button("Limpiar Chat"):
-        st.session_state.chat_history_pro = []
+    if st.button("Borrar historial"):
+        st.session_state.chat_history = []
         st.rerun()
 
-# --- VALIDACIÓN Y CARGA DEL AGENTE ---
+# --- INICIALIZACIÓN ---
 if user_api_key:
-    # Configurar el entorno
-    os.environ["GOOGLE_API_KEY"] = user_api_key
+    # Limpiar espacios y configurar entorno
+    api_key_limpia = user_api_key.strip()
+    os.environ["GOOGLE_API_KEY"] = api_key_limpia
     
-    # Definir componentes (Basado en tu notebook)
     try:
-        chat = ChatGoogleGenerativeAI(model='gemini-3-flash-preview', temperature=0)
-        
+        # MODELO CORREGIDO: Usamos 1.5-flash (el 3 no existe)
+        chat = ChatGoogleGenerativeAI(
+            model='gemini-3-flash-preview', 
+            google_api_key=api_key_limpia,
+            temperature=0
+        )
+
+        # Herramientas
         search = DuckDuckGoSearchResults()
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
         tools = [search, wikipedia]
 
-        # Prompt del apartado 'Agent with memory'
+        # Prompt con memoria (exacto al notebook)
         prompt = ChatPromptTemplate.from_messages([
             ("system", f"Eres un asistente preciso. Hoy es {fecha_actual}. "
-                       "Para datos de famosos (como CR7) o fechas, USA SIEMPRE Wikipedia o Search."),
+                       "Para fechas de nacimiento o datos de famosos, USA SIEMPRE Wikipedia o Search."),
             ("placeholder", "{history}"),
             ("human", "{input}"),
             ("placeholder", "{agent_scratchpad}"),
         ])
 
-        # Crear agente
+        # Agente
         agent = create_tool_calling_agent(chat, tools, prompt)
         agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True)
 
-        # Memoria persistente
-        msgs = StreamlitChatMessageHistory(key="chat_history_pro")
+        # Memoria persistente de Streamlit
+        msgs = StreamlitChatMessageHistory(key="chat_history")
 
-        # Función de limpieza (del notebook)
+        # Función de limpieza de salida (Lógica de tu notebook)
         def ensure_string_output(agent_result: dict) -> dict:
             output_value = agent_result.get('output')
             if isinstance(output_value, list):
-                concatenated_text = "".join([i.get('text', '') if isinstance(i, dict) else str(i) for i in output_value])
+                concatenated_text = ""
+                for item in output_value:
+                    if isinstance(item, dict) and item.get('type') == 'text':
+                        concatenated_text += item.get('text', '')
+                    elif isinstance(item, str):
+                        concatenated_text += item
                 agent_result['output'] = concatenated_text
             return agent_result
 
+        # Encadenar con historial
         agent_with_history = RunnableWithMessageHistory(
             agent_executor | RunnableLambda(ensure_string_output),
             lambda session_id: msgs,
@@ -72,24 +84,20 @@ if user_api_key:
         )
 
         # --- INTERFAZ DE CHAT ---
-        # Mostrar mensajes antiguos
         for msg in msgs.messages:
             st.chat_message(msg.type).write(msg.content)
 
-        # Entrada de chat
-        if user_input := st.chat_input("¿Qué quieres saber?"):
+        if user_input := st.chat_input("¿Qué quieres investigar?"):
             st.chat_message("human").write(user_input)
             
             with st.chat_message("ai"):
-                with st.status("Investigando...") as status:
-                    config = {"configurable": {"session_id": "session_123"}}
+                with st.status("Consultando fuentes...") as status:
+                    config = {"configurable": {"session_id": "any"}}
                     response = agent_with_history.invoke({"input": user_input}, config)
-                    status.update(label="✅ Listo", state="complete")
+                    status.update(label="Investigación terminada", state="complete")
                 st.write(response["output"])
-                
-    except Exception as e:
-        st.error(f"Error de conexión: Verifica que tu API Key sea válida. Detalle: {e}")
 
+    except Exception as e:
+        st.error(f"Error de conexión: {e}. Revisa tu API Key y el modelo.")
 else:
-    st.info("Para empezar, introduce tu API Key en la barra lateral izquierda 👈")
-    st.image("https://img.icons8.com/clouds/200/lock-landscape.png") # Ilustración de bloqueo
+    st.info("Introduce tu API Key en la barra lateral para comenzar.")
