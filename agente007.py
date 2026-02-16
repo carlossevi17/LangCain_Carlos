@@ -37,7 +37,7 @@ tools = [conchita_coins, wikipedia]
 # 3. Configuración del Modelo con parámetros de seguridad (Para evitar el ClientError)
 try:
     chat = ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-flash",
         temperature=0,
         safety_settings={
             "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
