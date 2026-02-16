@@ -38,7 +38,7 @@ with st.sidebar:
 # --- INICIALIZACIÓN DE COMPONENTES (Basado en tu Notebook) ---
 if api_key:
     os.environ["GOOGLE_API_KEY"] = api_key
-    chat = ChatGoogleGenerativeAI(model='gemini-1.5-flash', temperature=0.7)
+    chat = ChatGoogleGenerativeAI(model='gemini-3-flash-preview', temperature=0.7)
     
     # Herramientas
     search = DuckDuckGoSearchResults()
